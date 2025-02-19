@@ -1,8 +1,13 @@
 import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingRegressor
+from sklearn.svm import SVR
+from sklearn.neighbors import KNeighborsRegressor
+from xgboost import XGBRegressor
+import numpy as np
 
 # Укажите путь к обновленному файлу
 input_file = 'startdata_with_new_columns.xlsx'
@@ -26,39 +31,50 @@ X_scaled = scaler.fit_transform(X)
 X_train, X_test, y_train_revenue, y_test_revenue = train_test_split(X_scaled, y_revenue, test_size=0.2, random_state=42)
 X_train, X_test, y_train_profit, y_test_profit = train_test_split(X_scaled, y_profit, test_size=0.2, random_state=42)
 
-# Модель линейной регрессии для выручки
-revenue_model = LinearRegression()
-revenue_model.fit(X_train, y_train_revenue)
+# Модели для прогнозирования выручки и валовой прибыли
+models = {
+    'Linear Regression': LinearRegression(),
+    'Gradient Boosting': GradientBoostingRegressor(random_state=42),
+    'SVM': SVR(kernel='rbf'),
+    'KNN': KNeighborsRegressor(n_neighbors=5),
+    'XGBoost': XGBRegressor(random_state=42)
+}
 
-# Прогнозирование выручки
-df['Predicted_Выручка'] = revenue_model.predict(scaler.transform(df[features]))
+# Прогнозирование выручки и валовой прибыли с использованием всех моделей
+for model_name, model in models.items():
+    # Прогнозирование для выручки
+    model.fit(X_train, y_train_revenue)
+    df[f'Predicted_Выручка_{model_name}'] = model.predict(X_scaled)
+    
+    # Прогнозирование для валовой прибыли
+    model.fit(X_train, y_train_profit)
+    df[f'Predicted_Валовая_прибыль_{model_name}'] = model.predict(X_scaled)
 
-# Модель линейной регрессии для валовой прибыли
-profit_model = LinearRegression()
-profit_model.fit(X_train, y_train_profit)
+# --- Визуализация ---
 
-# Прогнозирование валовой прибыли
-df['Predicted_Валовая_прибыль'] = profit_model.predict(scaler.transform(df[features]))
+# Сравнение предсказаний
+plt.figure(figsize=(14, 8))
 
-# Классификация клиентов по кредитному лимиту (анализ риска)
-df['HighCreditRisk'] = df['CustomerCreditLimit'].apply(lambda x: 1 if x < 10000 else 0)
+# График для выручки
+plt.subplot(2, 1, 1)
+for model_name in models:
+    plt.plot(df['Выручка'], df[f'Predicted_Выручка_{model_name}'], 'o', label=model_name, alpha=0.7)
+plt.title('Comparison of Predicted vs Actual Revenue')
+plt.xlabel('Actual Revenue')
+plt.ylabel('Predicted Revenue')
+plt.legend()
 
-# Признаки для классификации
-X_class = df[['Стаж работы (годы)', 'PerUnitPrice', 'OrderItemQuantity', 'ProductStandardCost']]
-y_class = df['HighCreditRisk']
+# График для валовой прибыли
+plt.subplot(2, 1, 2)
+for model_name in models:
+    plt.plot(df['Валовая прибыль'], df[f'Predicted_Валовая_прибыль_{model_name}'], 'o', label=model_name, alpha=0.7)
+plt.title('Comparison of Predicted vs Actual Gross Profit')
+plt.xlabel('Actual Gross Profit')
+plt.ylabel('Predicted Gross Profit')
+plt.legend()
 
-# Масштабирование признаков для классификации
-X_class_scaled = scaler.fit_transform(X_class)
-
-# Разделение на тренировочную и тестовую выборки
-X_train_class, X_test_class, y_train_class, y_test_class = train_test_split(X_class_scaled, y_class, test_size=0.2, random_state=42)
-
-# Модель случайного леса для классификации
-clf = RandomForestClassifier()
-clf.fit(X_train_class, y_train_class)
-
-# Прогнозирование риска
-df['Predicted_HighCreditRisk'] = clf.predict(scaler.transform(df[['Стаж работы (годы)', 'PerUnitPrice', 'OrderItemQuantity', 'ProductStandardCost']]))
+plt.tight_layout()
+plt.show()
 
 # Сохраняем результат в новый Excel-файл
 output_file = 'final_data_with_predictions.xlsx'

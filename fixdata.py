@@ -7,10 +7,6 @@ input_file = 'startdata.xlsx'
 # Чтение исходного файла
 df = pd.read_excel(input_file)
 
-# Просмотр первых строк для проверки
-print("Исходные данные:")
-print(df.head())
-
 # 1. Выручка без НДС = Количество позиций * Цена за единицу товара * (1 - ставка НДС)
 df['Выручка без НДС'] = df['OrderItemQuantity'] * df['PerUnitPrice'] * (1 - 0.2)
 
@@ -33,15 +29,18 @@ df['План продаж'] = np.round(df['OrderItemQuantity'] * (np.random.rand
 df['Общая стоимость заказа'] = df['OrderItemQuantity'] * df['PerUnitPrice']
 
 # 12. Стаж работы сотрудника: переводим дату найма в формат datetime
-df['Дата найма сотрудника'] = pd.to_datetime(df['OrderDate'], format='%Y-%m-%d')
+df['Дата найма сотрудника'] = pd.to_datetime(df['EmployeeHireDate'], format='%Y-%m-%d')
 df['Стаж работы (дни)'] = (pd.to_datetime("today") - df['Дата найма сотрудника']).dt.days
 df['Стаж работы (годы)'] = df['Стаж работы (дни)'] // 365
 
 # 13. Остаток кредитного лимита = Кредитный лимит клиента - Общая сумма расходов клиента
 df['Остаток кредитного лимита'] = df['CustomerCreditLimit'] - df['Общая стоимость заказа']
 
+# Проверка на пропущенные значения и их обработка
+df = df.dropna(subset=['Стаж работы (годы)', 'ProductStandardCost', 'OrderItemQuantity', 'PerUnitPrice', 'Выручка', 'Валовая прибыль'])
+
 # Сохраняем результат в новый Excel-файл
-output_file = 'updated_data.xlsx'
+output_file = 'startdata_with_new_columns.xlsx'
 df.to_excel(output_file, index=False)
 
-print(f"\nДанные сохранены в {output_file}")
+print(f"\nДанные с новыми столбцами сохранены в {output_file}")
